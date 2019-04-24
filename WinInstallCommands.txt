@@ -1,0 +1,12 @@
+//Instal: 
+    //Download and install it from Python Website
+    install python
+    python -m pip install --upgrade pip
+    pip3 install flask
+    pip3 install flask_cors
+    pip3 install jwt
+    pip3 install flask_sqlalchemy
+//Correct Win Path:
+    'sqlite:///C:\\Users\\Metron\\Documents\\GitHub\\aiir-cz-1315-backend\\todo.db'
+//Run:
+    python3 api.py

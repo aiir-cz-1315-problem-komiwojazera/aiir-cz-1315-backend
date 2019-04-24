@@ -1,12 +1,16 @@
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS, cross_origin
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
 from functools import wraps
+import subprocess
+import sys
 
 app = Flask(__name__)
+CORS(app)
 
 app.config['SECRET_KEY'] = 'thisissecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/lukasz/restTest2/todo.db'
@@ -134,25 +138,48 @@ def delete_user(current_user, public_id):
     return jsonify({'message' : 'Usunięto użytkownika'})
 
 @app.route('/login')
+@cross_origin()
 def login():
+    #auth = request.authorization
+
+    #if not auth or not auth.username or not auth.password:
+        #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
+
+    #user = User.query.filter_by(name=auth.username).first()
+
+    #if not user:
+        #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
+
+    #if check_password_hash(user.password, auth.password):
+        #token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'])
+        #return jsonify({'message' : 'Zalogowano użytkownika'})
+        #return jsonify({'token' : token.decode('UTF-8')})
+
+    #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
     auth = request.authorization
-
-    if not auth or not auth.username or not auth.password:
-        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
-
     user = User.query.filter_by(name=auth.username).first()
-
-    if not user:
-        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
-
     if check_password_hash(user.password, auth.password):
-        token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'])
-
-        return jsonify({'token' : token.decode('UTF-8')})
-
+        return jsonify({'message' : 'Zalogowano użytkownika'})
     return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
 
+@app.route('/startCalc')
+def connect():
+    HOST="metron@192.168.0.110"
+
+    COMMAND="mpirun -n 2 MPITest 1 100"
+    ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
+                       shell=False,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+    result = ssh.stdout.readlines()
+    if result == []:
+        error = ssh.stderr.readlines()
+    #print >>sys.stderr, "ERROR: %s" % error
+    else:
+        print (result)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
+
 
 

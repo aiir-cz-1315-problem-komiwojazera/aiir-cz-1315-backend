@@ -120,15 +120,6 @@ def delete_user(current_user, public_id):
 
     return jsonify({'message' : 'Usunięto użytkownika'})
 
-@app.route('/login')
-@cross_origin()
-def login():
-    auth = request.authorization
-    user = User.query.filter_by(name=auth.username).first()
-    if check_password_hash(user.password, auth.password):
-        return jsonify({'message' : 'Zalogowano użytkownika'})
-    return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
-
 @app.route('/startCalc')
 def connect():
     HOST="metron@192.168.0.110"
@@ -157,6 +148,18 @@ def create_user():
     db.session.commit()
 
     return jsonify({'message' : 'Stworzono użytkownika!'})
+
+@app.route('/login', methods=['POST'])
+@cross_origin()
+def login():
+    data = request.get_json()
+
+    user = User.query.filter_by(name=data['username']).first()
+
+    if check_password_hash(user.password, data['password']):
+        return jsonify({'message' : 'Zalogowano użytkownika'})
+    return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

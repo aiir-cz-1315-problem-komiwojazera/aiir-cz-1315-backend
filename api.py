@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/lukasz/restTest2/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/todo.db'
 
 db = SQLAlchemy(app)
 
@@ -86,23 +86,6 @@ def get_one_user(current_user, public_id):
 
     return jsonify({'user' : user_data})
 
-@app.route('/user', methods=['POST'])
-@token_required
-def create_user(current_user):
-
-    if not current_user.admin:
-        return jsonify({'message' : 'Nie jesteś adminem, nie możesz tego wykonać'})
-
-    data = request.get_json()
-
-    hashed_password = generate_password_hash(data['password'], method='sha256')
-
-    new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False)
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({'message' : 'Stworzono użytkownika!'})
-
 @app.route('/user/<public_id>', methods=['PUT'])
 @token_required
 def promote_user(current_user, public_id):
@@ -140,22 +123,6 @@ def delete_user(current_user, public_id):
 @app.route('/login')
 @cross_origin()
 def login():
-    #auth = request.authorization
-
-    #if not auth or not auth.username or not auth.password:
-        #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
-
-    #user = User.query.filter_by(name=auth.username).first()
-
-    #if not user:
-        #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
-
-    #if check_password_hash(user.password, auth.password):
-        #token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'])
-        #return jsonify({'message' : 'Zalogowano użytkownika'})
-        #return jsonify({'token' : token.decode('UTF-8')})
-
-    #return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
     auth = request.authorization
     user = User.query.filter_by(name=auth.username).first()
     if check_password_hash(user.password, auth.password):
@@ -177,6 +144,19 @@ def connect():
     #print >>sys.stderr, "ERROR: %s" % error
     else:
         print (result)
+
+@app.route('/user/register', methods=['POST'])
+# @token_required
+def create_user():
+    data = request.get_json()
+
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+
+    new_user = User(public_id=str(uuid.uuid4()), name=data['username'], password=hashed_password, admin=False)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({'message' : 'Stworzono użytkownika!'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

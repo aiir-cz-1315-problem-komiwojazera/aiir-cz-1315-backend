@@ -8,12 +8,14 @@ import datetime
 from functools import wraps
 import subprocess
 import sys
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/todo.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/lukasz/gitAiir/aiir-cz-1315-backend/todo.db'
 
 db = SQLAlchemy(app)
 
@@ -120,12 +122,33 @@ def delete_user(current_user, public_id):
 
     return jsonify({'message' : 'Usunięto użytkownika'})
 
-@app.route('/startCalc')
-def connect():
-    HOST="metron@192.168.0.110"
 
-    COMMAND="mpirun -n 2 MPITest 1 100"
-    ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
+@app.route('/startCalc', methods=['POST'])
+def mpi():
+    data = request.get_json()
+    print(data)
+    n = data['problem_name']
+    print(n)
+    myCMD = 'mpirun -n 2 /home/lukasz/MPITest 1 '
+    out = ' > out.txt'
+    cmd = myCMD + n + out
+    os.system(cmd)
+    print(cmd)
+    f = open("out.txt","r")
+
+    contents = f.read()
+    print(contents)
+
+    f.close()
+    return jsonify({'result' : str(contents)})
+'''def connect():
+    HOST="lukasz@192.168.0.110"
+    data = request.get_json()
+    n = data['problem_name']
+    COMMAND="mpirun -n 2 MPITest 0"
+    command2 = COMMAND + n
+    ssh = subprocess.Popen(["ssh", "%s" % HOST, command2],
+
                        shell=False,
                        stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
@@ -135,6 +158,31 @@ def connect():
     #print >>sys.stderr, "ERROR: %s" % error
     else:
         print (result)
+'''
+@app.route('/user/register', methods=['POST'])
+# @token_required
+def create_user():
+    data = request.get_json()
+
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+
+    new_user = User(public_id=str(uuid.uuid4()), name=data['username'], password=hashed_password, admin=False)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({'message' : 'Stworzono użytkownika!'})
+
+@app.route('/login', methods=['POST'])
+@cross_origin()
+def login():
+    data = request.get_json()
+
+    user = User.query.filter_by(name=data['username']).first()
+
+    if check_password_hash(user.password, data['password']):
+        return jsonify({'message' : 'Zalogowano użytkownika'})
+    return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
+
 
 @app.route('/user/register', methods=['POST'])
 # @token_required
@@ -163,6 +211,7 @@ def login():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
+
 
 
 

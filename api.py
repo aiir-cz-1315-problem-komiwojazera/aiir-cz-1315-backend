@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 import uuid
@@ -9,12 +9,16 @@ from functools import wraps
 import subprocess
 import sys
 import os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
 
+UPLOAD_FOLDER = '/Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/'
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif','tsp','atsp'])
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/lukasz/gitAiir/aiir-cz-1315-backend/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/todo.db'
 db = SQLAlchemy(app)
 
 class User(db.Model):
@@ -122,10 +126,17 @@ def delete_user(current_user, public_id):
 
 @app.route('/startCalc', methods=['POST'])
 def mpi():
-    data = request.get_json()
-    print(data)
-    n = data['problem_name']
-    print(n)
+    target=os.path.join(UPLOAD_FOLDER,'test_docs')
+    if not os.path.isdir(target):
+        os.mkdir(target)
+    file = request.files['file'] 
+    print(file)
+    filename = secure_filename(file.filename)
+    destination="/".join([target, filename])
+    file.save(destination)
+    session['uploadFilePath']=destination
+
+    n = session['uploadFilePath'] #Sciezka do pliku
     myCMD = 'mpirun -n 2 /home/lukasz/MPITest 1 '
     out = ' > out.txt'
     cmd = myCMD + n + out
@@ -182,7 +193,3 @@ def login():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
-
-
-
-

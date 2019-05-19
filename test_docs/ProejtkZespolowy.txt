@@ -1,0 +1,103 @@
+Widoki:
+    Login
+        Components:
+            LoginForm
+                Endpoints:
+                    -post logowanie
+                    -post odzyskanie hasła
+
+    Registration
+        Components:
+            RejestracjaForm
+                Endpoints:
+                    -post rejestracja
+    Home
+        Components:
+            Project
+            ProjectsCollection
+                Endpoints:
+                    - post projekty uzytkownika
+                    - post aktualne projekty 
+                    - post wybrany projekt i w response obiekt tego projektu z obiektami aktywności 
+
+            Statystyki
+                Endpoints:
+                    - post 5 uzytkownikow z najwieksza iloscia punktow
+    Project
+        Components:
+            Photo
+            ActivitiesCollection
+            Activity
+            Date
+            Description
+            SignUp
+                Endpoints:
+                - post zapisz uzytkownika do projektu
+            Uczestnicy 
+                Endpoints:
+                    - post uczestnicy projektu 
+            Edit
+
+    Activity
+        Components:
+            Photo
+            Date
+            Description
+            SignUp
+                Endpoints:
+                - post zapisz uzytkownika do aktywności
+            Uczestnicy 
+                Endpoints:
+                    - post uczestnicy aktywności
+
+    ProjectEdit
+        Components:
+            PhotoEdit
+            ActivitiesCollectionEdit
+            ActivityEdit
+            DateEdit
+            DescriptionEdit
+            Save
+                Endpoints:
+                - post zapisz projekt
+            SignUp
+            Uczestnicy 
+
+    ActivityEdit
+        Components:
+            Photo
+            Date
+            Description
+            SignUp
+            Save
+                Endpoints:
+                - post zapisz aktywność
+
+
+    Profil
+        Components:
+            ProfilePhoto
+            Name
+            Milestones
+            History
+            ActivitiesCollection
+            Activity
+            Endpoints:
+                post dane uzytownika i historia jego aktywnosci
+
+    Statistics
+        Components:
+            RankHeader
+            Rank
+            RankBar
+        Endpoints:
+                post uzytownicy i punkty
+
+
+
+
+
+
+
+
+https://popmotion.io/pose/

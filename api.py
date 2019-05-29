@@ -7,26 +7,69 @@ import jwt
 import datetime
 from functools import wraps
 import subprocess
+import click
+from flask.cli import with_appcontext
 import sys
 import os
 from werkzeug.utils import secure_filename
-
-app = Flask(__name__)
+from rq.job import Job
+from worker import conn
+from sqlalchemy.orm import relationship
+from rq import Worker, Queue, Connection
+import redis
+app = Flask(__name__, instance_path='/home/kamila/Pulpit/AIIR/backend')
 CORS(app)
 
-UPLOAD_FOLDER = '/Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif','tsp','atsp'])
+UPLOAD_FOLDER = '//home/kamila/Pulpit/AIIR/backend/'
+ALLOWED_EXTENSIONS = set(['txt'])
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///Users/krzysztof/Documents/PWr/semestr-6/aiir/aiir-cz-1315-backend/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/kamila/Pulpit/AIIR/backend/todo.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 db = SQLAlchemy(app)
+q = Queue(connection=conn, name='waiting_tasks')#, is_async=False)
+session['file_number'] = 0
 
 class User(db.Model):
+    __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(50), unique=True)
     name = db.Column(db.String(50))
     password = db.Column(db.String(80))
     admin = db.Column(db.Boolean)
+    task = relationship("Task")
+
+'''
+#doprowadzić do działania, jeśli chcemy przechowywać wyniki w bazie
+class Result(db.Model):
+    __tablename__ = 'result'
+    id = db.Column(db.Integer, primary_key=True)
+    cost = db.Column(db.Integer)
+    tsp_path = db.Column(db.String(2000)) #wypisane miasta w kolejnosci odwiedzania?
+    # można dołożyć pole task, jeśli chcemy mieć relację w obie strony
+
+class Task(db.Model):
+    __tablename__ = 'task'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('User.id'))
+    user = relationship("User")
+    result = relationship("Result") 
+    completed = db.Column(db.Boolean)
+'''
+
+#odpalanie z konsoli: flask run_worker albo "ogólnie" rqworker waiting_tasks
+@click.command('run_worker')
+@with_appcontext 
+def run_worker():
+    print("aaaaaaaa", file=sys.stdout)
+    redis_url = app.config['REDIS_URL']
+    redis_connection = redis.from_url(redis_url)
+    with Connection(redis_connection):
+        worker = Worker('waiting_tasks')
+        worker.work()
+
+app.cli.add_command(run_worker)
 
 def token_required(f):
     @wraps(f)
@@ -125,30 +168,54 @@ def delete_user(current_user, public_id):
     return jsonify({'message' : 'Usunięto użytkownika'})
 
 @app.route('/startCalc', methods=['POST'])
-def mpi():
-    target=os.path.join(UPLOAD_FOLDER,'test_docs')
+#@token_required
+def start_calc():#current_user):
+    target=os.path.join(app.config['UPLOAD_FOLDER'],'test_docs')
     if not os.path.isdir(target):
         os.mkdir(target)
-    file = request.files['file'] 
-    print(file)
-    filename = secure_filename(file.filename)
-    destination="/".join([target, filename])
-    file.save(destination)
-    session['uploadFilePath']=destination
+    file = request.files['file']
+    '''
+    if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+    ''' 
+    #print(file)
+    if file and allowed_file(file.filename):
+        session['file_number'] += 1     #unikamy dubli - najlepiej z jakims hashem
+        filename = secure_filename(file.filename) + session['file_number']
+        destination = "/".join([target, filename])
+        file.save(destination)
+    '''
+    new_task = Task(user=current_user, completed=False)
+    db.session.add(new_task)
+    db.session.commit()
+    '''
+    q.enqueue_call(
+            func=mpi, args=(filename)#, new_task)
+        )
+    return jsonify({'message' : 'Rozpoczęto obliczenia'})
 
-    n = session['uploadFilePath'] #Sciezka do pliku
-    myCMD = 'mpirun -n 2 /home/lukasz/MPITest 1 '
+def mpi(filename):#, task):
+    #można to bardziej elegancko zrobić, pobierajac w mpi filename jako argument
+    #chyba że to koliduje z czymś jeszcze
+    os.system('rm -f input.txt')
+    myCMD = 'mv ' + filename + 'input.txt'
+    os.system(myCMD)
+    myCMD = 'mpirun -n 2 /home/kamila/Pulpit/AIIR/backend/MPITest ' #ta będzie docelowo
+    
     out = ' > out.txt'
-    cmd = myCMD + n + out
+    cmd = myCMD + out
     os.system(cmd)
-    print(cmd)
-    f = open("out.txt","r")
+    '''
+    new_result = Result(cost=-1, tsp_path='brak danych')
+    task.completed = True
+    result.tsp_path = contents
+    task.result = new_result
+    db.session.commit()
+    '''
+    pass
+    #return jsonify({'result' : str(contents)}) 
 
-    contents = f.read()
-    print(contents)
-
-    f.close()
-    return jsonify({'result' : str(contents)})
 '''def connect():
     HOST="lukasz@192.168.0.110"
     data = request.get_json()

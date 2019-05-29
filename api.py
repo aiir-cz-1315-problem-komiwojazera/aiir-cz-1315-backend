@@ -29,7 +29,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 db = SQLAlchemy(app)
 q = Queue(connection=conn, name='waiting_tasks')#, is_async=False)
-session['file_number'] = 0
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 class User(db.Model):
     __tablename__ = 'user'
@@ -181,8 +184,10 @@ def start_calc():#current_user):
     ''' 
     #print(file)
     if file and allowed_file(file.filename):
+        if not "file_number" in session:
+            session["file_number"]=0
         session['file_number'] += 1     #unikamy dubli - najlepiej z jakims hashem
-        filename = secure_filename(file.filename) + session['file_number']
+        filename = secure_filename(file.filename)# + session['file_number']
         destination = "/".join([target, filename])
         file.save(destination)
     '''
@@ -191,7 +196,7 @@ def start_calc():#current_user):
     db.session.commit()
     '''
     q.enqueue_call(
-            func=mpi, args=(filename)#, new_task)
+            func=mpi, args=(destination,) #, new_task)
         )
     return jsonify({'message' : 'Rozpoczęto obliczenia'})
 

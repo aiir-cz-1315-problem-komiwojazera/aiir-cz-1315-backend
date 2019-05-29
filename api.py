@@ -17,14 +17,15 @@ from worker import conn
 from sqlalchemy.orm import relationship
 from rq import Worker, Queue, Connection
 import redis
-app = Flask(__name__, instance_path='/home/kamila/Pulpit/AIIR/backend')
+import time
+app = Flask(__name__, instance_path='/home/lukasz/gitAiirTest/aiir-cz-1315-backend')
 CORS(app)
 
-UPLOAD_FOLDER = '//home/kamila/Pulpit/AIIR/backend/'
+UPLOAD_FOLDER = '//home/lukasz/gitAiirTest/aiir-cz-1315-backend/'
 ALLOWED_EXTENSIONS = set(['txt'])
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/kamila/Pulpit/AIIR/backend/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/lukasz/gitAiirTest/aiir-cz-1315-backend/todo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 db = SQLAlchemy(app)
@@ -41,7 +42,7 @@ class User(db.Model):
     name = db.Column(db.String(50))
     password = db.Column(db.String(80))
     admin = db.Column(db.Boolean)
-    task = relationship("Task")
+    #task = relationship("Task")
 
 '''
 #doprowadzić do działania, jeśli chcemy przechowywać wyniki w bazie
@@ -195,32 +196,70 @@ def start_calc():#current_user):
     db.session.add(new_task)
     db.session.commit()
     '''
-    q.enqueue_call(
+    job = q.enqueue_call(
             func=mpi, args=(destination,) #, new_task)
         )
-    return jsonify({'message' : 'Rozpoczęto obliczenia'})
+    #q.enqueue_call(
+     #       func=mpi, args=(destination,) #, new_task)
+      #  )
+    while job.result == None:
+        time.sleep(1)
+   # result = job.wait_result(timeout=360)
+    #return jsonify({'result' : 'Rozpoczęto obliczenia'})
+    lista = job.result.split('\n')
+   # lista2 = lista[1:-3]
+    lista3 = lista[0]
+    for miasto in lista[1:-2]:
+        lista3 = lista3 + '-' + miasto
+    #return jsonify({'result' : lista3})
+    return jsonify({'result' : str(lista[-2]), 'route' : str(lista3)})
 
 def mpi(filename):#, task):
     #można to bardziej elegancko zrobić, pobierajac w mpi filename jako argument
     #chyba że to koliduje z czymś jeszcze
     os.system('rm -f input.txt')
-    myCMD = 'mv ' + filename + 'input.txt'
+    myCMD = 'cp ' + filename + ' /home/lukasz/gitAiirTest/aiir-cz-1315-backend/input.txt'
     os.system(myCMD)
-    myCMD = 'mpirun -n 2 /home/kamila/Pulpit/AIIR/backend/MPITest ' #ta będzie docelowo
+    myCMD = 'mpirun -np 5 /home/lukasz/gitAiirTest/aiir-cz-1315-backend/tsp' #ta będzie docelowo
     
-    out = ' > out.txt'
+    '''out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
     cmd = myCMD + out
     os.system(cmd)
-    '''
+    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
+    contents = f.read()
+    print(contents, file=sys.stdout)
+
     new_result = Result(cost=-1, tsp_path='brak danych')
     task.completed = True
     result.tsp_path = contents
     task.result = new_result
     db.session.commit()
-    '''
-    pass
-    #return jsonify({'result' : str(contents)}) 
+ 
+    #pass
+    return jsonify({'result' : str(contents)}) '''
+    '''out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
+    cmd = myCMD + out
+    os.system(cmd)
+    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
+    contents = f.read()
+    f.close()
+    return contents       
+    pass'''
+    out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
+    cmd = myCMD + out
+    os.system(cmd)
+    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
 
+    contents = f.read()
+    #print(contents, file=sys.stdout)
+    #cmd = 'echo ' + contents
+    #os.system(cmd)
+    f.close()
+    #return jsonify({'result' : str(contents)})
+    #time.sleep(10)
+    return contents       
+    pass
+    
 '''def connect():
     HOST="lukasz@192.168.0.110"
     data = request.get_json()
@@ -249,7 +288,7 @@ def create_user():
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({'message' : 'Stworzono użytkownika!'})
+    return jsonify({'message' : 'Stworzono użytkownika!', 'id': str(uuid.uuid4())})
 
 @app.route('/login', methods=['POST'])
 @cross_origin()
@@ -259,7 +298,7 @@ def login():
     user = User.query.filter_by(name=data['username']).first()
 
     if check_password_hash(user.password, data['password']):
-        return jsonify({'message' : 'Zalogowano użytkownika'})
+        return jsonify({'message' : 'Zalogowano użytkownika', 'id': user.public_id})
     return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Wymagany login"'})
 
 

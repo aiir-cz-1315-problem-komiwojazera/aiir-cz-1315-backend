@@ -18,18 +18,18 @@ from sqlalchemy.orm import relationship
 from rq import Worker, Queue, Connection
 import redis
 import time
-app = Flask(__name__, instance_path='/home/lukasz/gitAiirTest/aiir-cz-1315-backend')
+app = Flask(__name__, instance_path='/home/ubuntu/cloud/backend/aiir-cz-1315-backend')
 CORS(app)
 
-UPLOAD_FOLDER = '//home/lukasz/gitAiirTest/aiir-cz-1315-backend/'
+UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
 ALLOWED_EXTENSIONS = set(['txt'])
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/lukasz/gitAiirTest/aiir-cz-1315-backend/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/ubuntu/cloud/backend/aiir-cz-1315-backend/todo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 db = SQLAlchemy(app)
-q = Queue(connection=conn, name='waiting_tasks')#, is_async=False)
+q = Queue(connection=conn, name='waiting_tasks', is_async=False)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -66,7 +66,6 @@ class Task(db.Model):
 @click.command('run_worker')
 @with_appcontext 
 def run_worker():
-    print("aaaaaaaa", file=sys.stdout)
     redis_url = app.config['REDIS_URL']
     redis_connection = redis.from_url(redis_url)
     with Connection(redis_connection):
@@ -184,7 +183,7 @@ def start_calc():#current_user):
             return redirect(request.url)
     ''' 
     #print(file)
-    if file and allowed_file(file.filename):
+    if file :#and allowed_file(file.filename):
         if not "file_number" in session:
             session["file_number"]=0
         session['file_number'] += 1     #unikamy dubli - najlepiej z jakims hashem
@@ -218,14 +217,14 @@ def mpi(filename):#, task):
     #można to bardziej elegancko zrobić, pobierajac w mpi filename jako argument
     #chyba że to koliduje z czymś jeszcze
     os.system('rm -f input.txt')
-    myCMD = 'cp ' + filename + ' /home/lukasz/gitAiirTest/aiir-cz-1315-backend/input.txt'
+    myCMD = 'cp ' + filename + ' /home/ubuntu/cloud/backend/aiir-cz-1315-backend/input.txt'
     os.system(myCMD)
-    myCMD = 'mpirun -np 5 /home/lukasz/gitAiirTest/aiir-cz-1315-backend/tsp' #ta będzie docelowo
+    myCMD = 'mpirun -np 8 -host master,client /home/ubuntu/cloud/backend/aiir-cz-1315-backend/tsp' #ta będzie docelowo
     
-    '''out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
+    '''out = ' > /home/metron/aiir-cz-1315-backend/out.txt'
     cmd = myCMD + out
     os.system(cmd)
-    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
+    f = open("/home/metron/aiir-cz-1315-backend/out.txt","r")
     contents = f.read()
     print(contents, file=sys.stdout)
 
@@ -245,10 +244,10 @@ def mpi(filename):#, task):
     f.close()
     return contents       
     pass'''
-    out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
+    out = ' > /home/ubuntu/cloud/backend/aiir-cz-1315-backend/out.txt'
     cmd = myCMD + out
     os.system(cmd)
-    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
+    f = open("/home/ubuntu/cloud/backend/aiir-cz-1315-backend/out.txt","r")
 
     contents = f.read()
     #print(contents, file=sys.stdout)

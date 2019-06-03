@@ -18,16 +18,21 @@ from sqlalchemy.orm import relationship
 from rq import Worker, Queue, Connection
 import redis
 import time
-app = Flask(__name__, instance_path='/home/ubuntu/cloud/backend/aiir-cz-1315-backend')
-CORS(app)
 
 UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
+#UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
+
+app = Flask(__name__, instance_path=UPLOAD_FOLDER)
+CORS(app)
+
+
 ALLOWED_EXTENSIONS = set(['txt'])
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///home/ubuntu/cloud/backend/aiir-cz-1315-backend/todo.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + UPLOAD_FOLDER + '/todo.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
+
 db = SQLAlchemy(app)
 q = Queue(connection=conn, name='waiting_tasks', is_async=False)
 
@@ -216,10 +221,11 @@ def start_calc():#current_user):
 def mpi(filename):#, task):
     #można to bardziej elegancko zrobić, pobierajac w mpi filename jako argument
     #chyba że to koliduje z czymś jeszcze
-    os.system('rm -f input.txt')
-    myCMD = 'cp ' + filename + ' /home/ubuntu/cloud/backend/aiir-cz-1315-backend/input.txt'
+    myCMD = 'rm -f ' + UPLOAD_FOLDER + '/input.txt'
     os.system(myCMD)
-    myCMD = 'mpirun -np 8 -host master,client /home/ubuntu/cloud/backend/aiir-cz-1315-backend/tsp' #ta będzie docelowo
+    myCMD = 'cp ' + filename + ' ' + UPLOAD_FOLDER + '/input.txt'
+    os.system(myCMD)
+    myCMD = 'mpirun -np 8 -host master,client ' + UPLOAD_FOLDER + '/tsp' #ta będzie docelowo
     
     '''out = ' > /home/metron/aiir-cz-1315-backend/out.txt'
     cmd = myCMD + out
@@ -244,10 +250,10 @@ def mpi(filename):#, task):
     f.close()
     return contents       
     pass'''
-    out = ' > /home/ubuntu/cloud/backend/aiir-cz-1315-backend/out.txt'
-    cmd = myCMD + out
+    out = UPLOAD_FOLDER + '/out.txt'
+    cmd = myCMD + ' > ' + out
     os.system(cmd)
-    f = open("/home/ubuntu/cloud/backend/aiir-cz-1315-backend/out.txt","r")
+    f = open(out, "r")
 
     contents = f.read()
     #print(contents, file=sys.stdout)
@@ -258,24 +264,7 @@ def mpi(filename):#, task):
     #time.sleep(10)
     return contents       
     pass
-    
-'''def connect():
-    HOST="lukasz@192.168.0.110"
-    data = request.get_json()
-    n = data['problem_name']
-    COMMAND="mpirun -n 2 MPITest 0"
-    command2 = COMMAND + n
-    ssh = subprocess.Popen(["ssh", "%s" % HOST, command2],
-                       shell=False,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
-    result = ssh.stdout.readlines()
-    if result == []:
-        error = ssh.stderr.readlines()
-    #print >>sys.stderr, "ERROR: %s" % error
-    else:
-        print (result)
-'''
+
 @app.route('/user/register', methods=['POST'])
 # @token_required
 def create_user():

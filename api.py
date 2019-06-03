@@ -19,8 +19,8 @@ from rq import Worker, Queue, Connection
 import redis
 import time
 
-UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
-#UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
+#UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
+UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
 
 app = Flask(__name__, instance_path=UPLOAD_FOLDER)
 CORS(app)
@@ -182,19 +182,21 @@ def start_calc():#current_user):
     if not os.path.isdir(target):
         os.mkdir(target)
     file = request.files['file']
-    '''
+    problem_name = request.form['filename']
+    user_id = request.form['user']
+
     if file.filename == '':
             flash('No selected file')
-            return redirect(request.url)
-    ''' 
-    #print(file)
-    if file :#and allowed_file(file.filename):
-        if not "file_number" in session:
-            session["file_number"]=0
-        session['file_number'] += 1     #unikamy dubli - najlepiej z jakims hashem
-        filename = secure_filename(file.filename)# + session['file_number']
+            return redirect('/')
+    
+    
+    if file and allowed_file(file.filename):
+        filename = user_id + '.' + problem_name + '.' + secure_filename(file.filename)
         destination = "/".join([target, filename])
         file.save(destination)
+    else:
+        #to można w jakiejś innej formie przedstawić
+        return jsonify({'route' : 'Nieprawidłowy plik'}) 
     '''
     new_task = Task(user=current_user, completed=False)
     db.session.add(new_task)
@@ -227,29 +229,13 @@ def mpi(filename):#, task):
     os.system(myCMD)
     myCMD = 'mpirun -np 8 -host master,client ' + UPLOAD_FOLDER + '/tsp' #ta będzie docelowo
     
-    '''out = ' > /home/metron/aiir-cz-1315-backend/out.txt'
-    cmd = myCMD + out
-    os.system(cmd)
-    f = open("/home/metron/aiir-cz-1315-backend/out.txt","r")
-    contents = f.read()
-    print(contents, file=sys.stdout)
-
+    '''
     new_result = Result(cost=-1, tsp_path='brak danych')
     task.completed = True
     result.tsp_path = contents
     task.result = new_result
     db.session.commit()
- 
-    #pass
-    return jsonify({'result' : str(contents)}) '''
-    '''out = ' > /home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt'
-    cmd = myCMD + out
-    os.system(cmd)
-    f = open("/home/lukasz/gitAiirTest/aiir-cz-1315-backend/out.txt","r")
-    contents = f.read()
-    f.close()
-    return contents       
-    pass'''
+    '''
     out = UPLOAD_FOLDER + '/out.txt'
     cmd = myCMD + ' > ' + out
     os.system(cmd)

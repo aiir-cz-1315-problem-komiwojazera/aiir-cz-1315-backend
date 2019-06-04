@@ -34,7 +34,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 
 db = SQLAlchemy(app)
-q = Queue(connection=conn, name='waiting_tasks', is_async=False)
+q = Queue(connection=conn, name='waiting_tasks')#, is_async=False)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -49,23 +49,29 @@ class User(db.Model):
     admin = db.Column(db.Boolean)
     #task = relationship("Task")
 
-'''
+
 #doprowadzić do działania, jeśli chcemy przechowywać wyniki w bazie
+'''
 class Result(db.Model):
     __tablename__ = 'result'
     id = db.Column(db.Integer, primary_key=True)
     cost = db.Column(db.Integer)
-    tsp_path = db.Column(db.String(2000)) #wypisane miasta w kolejnosci odwiedzania?
+    tsp_path = db.Column(db.String()) #wypisane miasta w kolejnosci odwiedzania?
     # można dołożyć pole task, jeśli chcemy mieć relację w obie strony
-
+'''
 class Task(db.Model):
     __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = relationship("User")
-    result = relationship("Result") 
-    completed = db.Column(db.Boolean)
-'''
+    problem_name = db.Column(db.String())
+    size = db.Column(db.Integer)
+    filename = db.Column(db.String())
+    progress = db.Column(db.Integer)
+    cost = db.Column(db.Integer)
+    tsp_path = db.Column(db.String())
+
+db.create_all()
 
 #odpalanie z konsoli: flask run_worker albo "ogólnie" rqworker waiting_tasks
 @click.command('run_worker')
@@ -197,58 +203,68 @@ def start_calc():#current_user):
     else:
         #to można w jakiejś innej formie przedstawić
         return jsonify({'route' : 'Nieprawidłowy plik'}) 
-    '''
-    new_task = Task(user=current_user, completed=False)
+    with open(destination) as f:
+        size = f.readline()
+    print(size, file=sys.stdout)
+    new_task = Task(user_id=user_id, problem_name=problem_name, \
+        filename=destination, size=size, progress=0, tsp_path='Brak danych')
     db.session.add(new_task)
     db.session.commit()
-    '''
+    
     job = q.enqueue_call(
-            func=mpi, args=(destination,) #, new_task)
+            func=mpi, args=(destination, new_task.id,)
         )
-    #q.enqueue_call(
-     #       func=mpi, args=(destination,) #, new_task)
-      #  )
-    while job.result == None:
-        time.sleep(1)
-   # result = job.wait_result(timeout=360)
-    #return jsonify({'result' : 'Rozpoczęto obliczenia'})
-    lista = job.result.split('\n')
-   # lista2 = lista[1:-3]
-    lista3 = lista[0]
-    for miasto in lista[1:-2]:
-        lista3 = lista3 + '-' + miasto
-    #return jsonify({'result' : lista3})
-    return jsonify({'result' : str(lista[-2]), 'route' : str(lista3)})
+    time.sleep(0.5)  #
+    if str(job.get_status())=='started':
+        return jsonify({'result' : 'Rozpoczęto obliczenia'})
+    elif str(job.get_status())=='queued':
+        return jsonify({'result' : 'Oczekuje na wykonanie'})
+    elif str(job.get_status())=='finished':
+        db.session.commit() #TAK, TEN COMMIT MA BYĆ!!!
+        task = Task.query.filter_by(id=new_task.id).first()
+        return jsonify({'result' : str(task.cost), 'route' : str(task.tsp_path)})
+    else 
+        return jsonify({'result' : 'Wystąpił błąd'})
 
-def mpi(filename):#, task):
+    return jsonify({'result' : str(job.get_status())})
+'''    
+#    lista = job.result.split('\n')
+
+#    lista3 = lista[0]
+#    for miasto in lista[1:-2]:
+#        lista3 = lista3 + '-' + miasto
+#    return jsonify({'result' : str(lista[-2]), 'route' : str(lista3)})
+'''
+    
+def mpi(filename, task_id):
     #można to bardziej elegancko zrobić, pobierajac w mpi filename jako argument
     #chyba że to koliduje z czymś jeszcze
     myCMD = 'rm -f ' + UPLOAD_FOLDER + '/input.txt'
     os.system(myCMD)
     myCMD = 'cp ' + filename + ' ' + UPLOAD_FOLDER + '/input.txt'
     os.system(myCMD)
-    myCMD = 'mpirun -np 8 -host master,client ' + UPLOAD_FOLDER + '/tsp' #ta będzie docelowo
     
-    '''
-    new_result = Result(cost=-1, tsp_path='brak danych')
-    task.completed = True
-    result.tsp_path = contents
-    task.result = new_result
-    db.session.commit()
-    '''
+    myCMD = 'mpirun -np 8 -host master,client ' + UPLOAD_FOLDER + '/tsp' #ta będzie docelowo
     out = UPLOAD_FOLDER + '/out.txt'
     cmd = myCMD + ' > ' + out
     os.system(cmd)
-    f = open(out, "r")
 
+    f = open(out, "r")
     contents = f.read()
-    #print(contents, file=sys.stdout)
-    #cmd = 'echo ' + contents
-    #os.system(cmd)
     f.close()
-    #return jsonify({'result' : str(contents)})
-    #time.sleep(10)
-    return contents       
+
+    lista = contents.split('\n')
+
+    lista3 = lista[0]
+    for miasto in lista[1:-2]:
+        lista3 = lista3 + '-' + miasto
+    
+    task = Task.query.filter_by(id=task_id).first()
+    setattr(task, "progress", 100)
+    setattr(task, "tsp_path", str(lista3))
+    setattr(task, "cost", int(lista[-2]))
+    db.session.commit()
+    print('Zapisano wynik', file=sys.stderr)
     pass
 
 @app.route('/user/register', methods=['POST'])

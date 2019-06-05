@@ -18,6 +18,7 @@ from sqlalchemy.orm import relationship
 from rq import Worker, Queue, Connection
 import redis
 import time
+import json
 
 UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
 #UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
@@ -34,7 +35,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['REDIS_URL'] = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 
 db = SQLAlchemy(app)
-q = Queue(connection=conn, name='waiting_tasks')#, is_async=False)
+q = Queue(connection=conn, name='waiting_tasks')
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -70,7 +71,16 @@ class Task(db.Model):
     progress = db.Column(db.Integer)
     cost = db.Column(db.Integer)
     tsp_path = db.Column(db.String())
-
+    
+    @property
+    def serialize(self):
+        return {
+            'id' : self.id,
+            'name' : self.problem_name,
+            'cost' : self.cost,
+            'route' : self.tsp_path,
+            'progress' : self.progress
+        }
 db.create_all()
 
 #odpalanie z konsoli: flask run_worker albo "ogólnie" rqworker waiting_tasks
@@ -212,7 +222,8 @@ def start_calc():#current_user):
     db.session.commit()
     
     job = q.enqueue_call(
-            func=mpi, args=(destination, new_task.id,)
+            func=mpi, args=(destination, new_task.id,),
+            ttl=-1, timeout=-1
         )
     time.sleep(0.5)  #
     if str(job.get_status())=='started':
@@ -266,6 +277,15 @@ def mpi(filename, task_id):
     db.session.commit()
     print('Zapisano wynik', file=sys.stderr)
     pass
+
+@app.route('/getHistory', methods=['POST'])
+def get_history():
+    #print('KOTY SA MILE', file=sys.stderr)
+    print(request.form['user'], file=sys.stderr)
+    user_task = Task.query.filter_by(user_id=request.form['user'])
+    return json.dumps([i.serialize for i in user_task.all()])
+    print(user_task.all())
+    #return json.dumps(user_task.all())
 
 @app.route('/user/register', methods=['POST'])
 # @token_required

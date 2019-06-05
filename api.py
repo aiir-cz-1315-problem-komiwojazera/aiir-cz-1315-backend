@@ -19,8 +19,8 @@ from rq import Worker, Queue, Connection
 import redis
 import time
 
-#UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
-UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
+UPLOAD_FOLDER = '/home/ubuntu/cloud/backend/aiir-cz-1315-backend/'
+#UPLOAD_FOLDER = '/home/kamila/Pulpit/AIIR/backend/aiir-cz-1315-backend/'
 
 app = Flask(__name__, instance_path=UPLOAD_FOLDER)
 CORS(app)
@@ -223,7 +223,7 @@ def start_calc():#current_user):
         db.session.commit() #TAK, TEN COMMIT MA BYĆ!!!
         task = Task.query.filter_by(id=new_task.id).first()
         return jsonify({'result' : str(task.cost), 'route' : str(task.tsp_path)})
-    else 
+    else: 
         return jsonify({'result' : 'Wystąpił błąd'})
 
     return jsonify({'result' : str(job.get_status())})

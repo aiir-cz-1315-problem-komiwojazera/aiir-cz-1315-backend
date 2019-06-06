@@ -74,10 +74,13 @@ class Task(db.Model):
     
     @property
     def serialize(self):
+        cost = self.cost
+        if cost==None:
+            cost="brak wyniku"
         return {
             'id' : self.id,
             'name' : self.problem_name,
-            'cost' : self.cost,
+            'cost' : cost, #self.cost,
             'route' : self.tsp_path,
             'progress' : self.progress
         }

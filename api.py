@@ -77,11 +77,14 @@ class Task(db.Model):
         cost = self.cost
         if cost==None:
             cost="brak wyniku"
+        route = self.tsp_path
+        if route==None:
+            route="brak wyniku"
         return {
             'id' : self.id,
             'name' : self.problem_name,
             'cost' : cost, #self.cost,
-            'route' : self.tsp_path,
+            'route' : route, #self.tsp_path,
             'progress' : self.progress
         }
 db.create_all()
@@ -228,7 +231,11 @@ def start_calc():#current_user):
             func=mpi, args=(destination, new_task.id,),
             ttl=-1, timeout=-1
         )
-    time.sleep(0.5)  #
+    jsonify({'result' : 'Rozpoczęto obliczenia'})
+
+    while str(job.get_status())!='finished' and str(job.get_status())!='failed':
+        time.sleep(0.5)  #
+    print(str(job.get_status()), file=sys.stderr)
     if str(job.get_status())=='started':
         return jsonify({'result' : 'Rozpoczęto obliczenia'})
     elif str(job.get_status())=='queued':
